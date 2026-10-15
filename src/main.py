@@ -15,26 +15,45 @@ except ImportError:
     from recommender import load_songs, recommend_songs
 
 
-def main() -> None:
-    songs = load_songs("data/songs.csv")
-    print(f"Loaded songs: {len(songs)}")
-
-    # Starter example profile
-    user_prefs = {
+# Distinct user preference dictionaries for trying out different personas
+USER_PROFILES = {
+    "High-Energy Pop": {
         "favorite_genre": "pop",
-        "favorite_mood": "happy",
-        "target_energy": 0.8,
+        "favorite_mood": "intense",
+        "target_energy": 0.9,
         "likes_acoustic": False,
-    }
+    },
+    "Chill Lofi": {
+        "favorite_genre": "lofi",
+        "favorite_mood": "chill",
+        "target_energy": 0.35,
+        "likes_acoustic": True,
+    },
+    "Deep Intense Rock": {
+        "favorite_genre": "rock",
+        "favorite_mood": "intense",
+        "target_energy": 0.9,
+        "likes_acoustic": False,
+    },
+}
 
-    recommendations = recommend_songs(user_prefs, songs, k=5)
 
-    print("\nTop Recommendations")
-    print("=" * 40)
+def print_recommendations(user_prefs: dict, songs: list, k: int = 5) -> None:
+    recommendations = recommend_songs(user_prefs, songs, k=k)
     for rank, (song, score, explanation) in enumerate(recommendations, start=1):
         print(f"\n{rank}. {song['title']} (by {song['artist']}) — Score: {score:.2f}")
         for reason in explanation.split("; "):
             print(f"     - {reason}")
+
+
+def main() -> None:
+    songs = load_songs("data/songs.csv")
+    print(f"Loaded songs: {len(songs)}")
+
+    for name, user_prefs in USER_PROFILES.items():
+        print(f"\n\nTop Recommendations — {name}")
+        print("=" * 40)
+        print_recommendations(user_prefs, songs, k=5)
 
 
 if __name__ == "__main__":

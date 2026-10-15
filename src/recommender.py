@@ -77,6 +77,13 @@ def load_songs(csv_path: str) -> List[Dict]:
 
     return songs
 
+# EXPERIMENT: Weight Shift — genre halved (2.0 -> 1.0), energy doubled (2.0 -> 4.0).
+# Original finalized recipe was GENRE_WEIGHT=2.0, ENERGY_WEIGHT=2.0; see README/model_card.
+GENRE_WEIGHT = 1.0
+MOOD_WEIGHT = 1.0
+ENERGY_WEIGHT = 4.0
+ACOUSTIC_WEIGHT = 1.0
+
 def _score_components(
     genre: str,
     mood: str,
@@ -87,29 +94,29 @@ def _score_components(
     target_energy: float,
     likes_acoustic: bool,
 ) -> Tuple[float, List[str]]:
-    """Applies the Algorithm Recipe (genre +2.0, mood +1.0, energy up to +2.0, acoustic up to +1.0) shared by both scoring paths."""
+    """Applies the Algorithm Recipe (weighted genre/mood/energy/acoustic match) shared by both scoring paths."""
     reasons = []
     score = 0.0
 
     if genre == favorite_genre:
-        score += 2.0
-        reasons.append(f"genre '{genre}' matches your favorite genre (+2.0)")
+        score += GENRE_WEIGHT
+        reasons.append(f"genre '{genre}' matches your favorite genre (+{GENRE_WEIGHT:.1f})")
 
     if mood == favorite_mood:
-        score += 1.0
-        reasons.append(f"mood '{mood}' matches your favorite mood (+1.0)")
+        score += MOOD_WEIGHT
+        reasons.append(f"mood '{mood}' matches your favorite mood (+{MOOD_WEIGHT:.1f})")
 
-    energy_points = 2.0 * (1 - abs(energy - target_energy))
+    energy_points = ENERGY_WEIGHT * (1 - abs(energy - target_energy))
     score += energy_points
     reasons.append(
         f"energy {energy:.2f} is close to your target {target_energy:.2f} (+{energy_points:.2f})"
     )
 
     if likes_acoustic:
-        acoustic_points = 1.0 * acousticness
+        acoustic_points = ACOUSTIC_WEIGHT * acousticness
         reasons.append(f"acoustic sound ({acousticness:.2f}) matches your preference (+{acoustic_points:.2f})")
     else:
-        acoustic_points = 1.0 * (1 - acousticness)
+        acoustic_points = ACOUSTIC_WEIGHT * (1 - acousticness)
         reasons.append(f"non-acoustic sound ({acousticness:.2f}) matches your preference (+{acoustic_points:.2f})")
     score += acoustic_points
 

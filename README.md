@@ -95,37 +95,95 @@ You can add more tests in `tests/test_recommender.py`.
 
 ## Sample Recommendation Output
 
-User profile: `favorite_genre=pop, favorite_mood=happy, target_energy=0.8, likes_acoustic=False`
+`python -m src.main` runs the recommender against three distinct taste profiles defined in `src/main.py` (`USER_PROFILES`) and prints the top 5 for each:
 
 ```
 Loaded songs: 18
 
-Top Recommendations
+
+Top Recommendations — High-Energy Pop
 ========================================
 
-1. Sunrise City (by Neon Echo) — Score: 5.78
+1. Gym Hero (by Max Pulse) — Score: 5.89
      - genre 'pop' matches your favorite genre (+2.0)
-     - mood 'happy' matches your favorite mood (+1.0)
-     - energy 0.82 is close to your target 0.80 (+1.96)
-     - non-acoustic sound (0.18) matches your preference (+0.82)
-
-2. Gym Hero (by Max Pulse) — Score: 4.69
-     - genre 'pop' matches your favorite genre (+2.0)
-     - energy 0.93 is close to your target 0.80 (+1.74)
+     - mood 'intense' matches your favorite mood (+1.0)
+     - energy 0.93 is close to your target 0.90 (+1.94)
      - non-acoustic sound (0.05) matches your preference (+0.95)
 
-3. Rooftop Lights (by Indigo Parade) — Score: 3.57
-     - mood 'happy' matches your favorite mood (+1.0)
-     - energy 0.76 is close to your target 0.80 (+1.92)
-     - non-acoustic sound (0.35) matches your preference (+0.65)
+2. Sunrise City (by Neon Echo) — Score: 4.66
+     - genre 'pop' matches your favorite genre (+2.0)
+     - energy 0.82 is close to your target 0.90 (+1.84)
+     - non-acoustic sound (0.18) matches your preference (+0.82)
 
-4. City Pulse (by Trap Line) — Score: 2.88
-     - energy 0.78 is close to your target 0.80 (+1.96)
-     - non-acoustic sound (0.08) matches your preference (+0.92)
+3. Storm Runner (by Voltline) — Score: 3.88
+     - mood 'intense' matches your favorite mood (+1.0)
+     - energy 0.91 is close to your target 0.90 (+1.98)
+     - non-acoustic sound (0.10) matches your preference (+0.90)
 
-5. Neon Sunrise (by Pulse Grid) — Score: 2.80
-     - energy 0.88 is close to your target 0.80 (+1.84)
+4. Neon Sunrise (by Pulse Grid) — Score: 2.92
+     - energy 0.88 is close to your target 0.90 (+1.96)
      - non-acoustic sound (0.04) matches your preference (+0.96)
+
+5. Iron Fury (by Scorch Legion) — Score: 2.83
+     - energy 0.97 is close to your target 0.90 (+1.86)
+     - non-acoustic sound (0.03) matches your preference (+0.97)
+
+
+Top Recommendations — Chill Lofi
+========================================
+
+1. Library Rain (by Paper Lanterns) — Score: 5.86
+     - genre 'lofi' matches your favorite genre (+2.0)
+     - mood 'chill' matches your favorite mood (+1.0)
+     - energy 0.35 is close to your target 0.35 (+2.00)
+     - acoustic sound (0.86) matches your preference (+0.86)
+
+2. Midnight Coding (by LoRoom) — Score: 5.57
+     - genre 'lofi' matches your favorite genre (+2.0)
+     - mood 'chill' matches your favorite mood (+1.0)
+     - energy 0.42 is close to your target 0.35 (+1.86)
+     - acoustic sound (0.71) matches your preference (+0.71)
+
+3. Focus Flow (by LoRoom) — Score: 4.68
+     - genre 'lofi' matches your favorite genre (+2.0)
+     - energy 0.40 is close to your target 0.35 (+1.90)
+     - acoustic sound (0.78) matches your preference (+0.78)
+
+4. Spacewalk Thoughts (by Orbit Bloom) — Score: 3.78
+     - mood 'chill' matches your favorite mood (+1.0)
+     - energy 0.28 is close to your target 0.35 (+1.86)
+     - acoustic sound (0.92) matches your preference (+0.92)
+
+5. Coffee Shop Stories (by Slow Stereo) — Score: 2.85
+     - energy 0.37 is close to your target 0.35 (+1.96)
+     - acoustic sound (0.89) matches your preference (+0.89)
+
+
+Top Recommendations — Deep Intense Rock
+========================================
+
+1. Storm Runner (by Voltline) — Score: 5.88
+     - genre 'rock' matches your favorite genre (+2.0)
+     - mood 'intense' matches your favorite mood (+1.0)
+     - energy 0.91 is close to your target 0.90 (+1.98)
+     - non-acoustic sound (0.10) matches your preference (+0.90)
+
+2. Gym Hero (by Max Pulse) — Score: 3.89
+     - mood 'intense' matches your favorite mood (+1.0)
+     - energy 0.93 is close to your target 0.90 (+1.94)
+     - non-acoustic sound (0.05) matches your preference (+0.95)
+
+3. Neon Sunrise (by Pulse Grid) — Score: 2.92
+     - energy 0.88 is close to your target 0.90 (+1.96)
+     - non-acoustic sound (0.04) matches your preference (+0.96)
+
+4. Iron Fury (by Scorch Legion) — Score: 2.83
+     - energy 0.97 is close to your target 0.90 (+1.86)
+     - non-acoustic sound (0.03) matches your preference (+0.97)
+
+5. City Pulse (by Trap Line) — Score: 2.68
+     - energy 0.78 is close to your target 0.90 (+1.76)
+     - non-acoustic sound (0.08) matches your preference (+0.92)
 ```
 
 **Screenshot or video** *(optional)*: <!-- Insert a screenshot or demo video link here -->
