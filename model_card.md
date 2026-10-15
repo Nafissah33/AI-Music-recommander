@@ -2,48 +2,50 @@
 
 ## 1. Model Name  
 
-Give your model a short, descriptive name.  
-Example: **VibeFinder 1.0**  
+**VibeMatch 1.0**
+
+It checks how close a song's "vibe" is to what you say you like.
 
 ---
 
 ## 2. Intended Use  
 
-Describe what your recommender is designed to do and who it is for. 
+**Goal:** VibeMatch suggests songs based on one person's stated taste. It is not trying to guess your taste from your listening history. You tell it what you like, and it finds songs that match.
 
-Prompts:  
+**Who it's for:** This is a classroom project, not a real app. It's meant to show how a simple recommender works, step by step.
 
-- What kind of recommendations does it generate  
-- What assumptions does it make about the user  
-- Is this for real users or classroom exploration  
+**What it assumes:** It assumes you have one clear, steady taste. It picks one favorite genre, one favorite mood, one target energy level, and one acoustic preference. It does not handle people whose taste changes by mood or situation.
+
+**Intended use:** Learning how content-based recommenders work. Testing how scoring rules affect rankings. Exploring bias and edge cases in a small, controlled catalog.
+
+**Not intended for:** Real listeners or a real streaming product. Large catalogs (it was only tested with 18 songs). Users with mixed, changing, or multiple tastes at once. Any use where a wrong or unfair recommendation would actually matter.
 
 ---
 
 ## 3. How the Model Works  
 
-Explain your scoring approach in simple language.  
+Every song gets points, one rule at a time:
 
-Prompts:  
+1. **Genre match:** if the song's genre is your favorite genre, it gets 2 points.
+2. **Mood match:** if the song's mood is your favorite mood, it gets 1 point.
+3. **Energy match:** the closer the song's energy is to the energy you asked for, the more points it gets — up to 2 points for a perfect match.
+4. **Acoustic match:** if you said you like acoustic songs, acoustic songs get up to 1 extra point. If you said you don't, non-acoustic songs get that point instead.
 
-- What features of each song are used (genre, energy, mood, etc.)  
-- What user preferences are considered  
-- How does the model turn those into a score  
-- What changes did you make from the starter logic  
+All four point values are added into one final score. Every song in the catalog gets scored this way, not just a few. Then the songs are sorted from highest score to lowest, and the top matches are shown with the reasons behind each score.
 
-Avoid code here. Pretend you are explaining the idea to a friend who does not program.
+Changes from the starter logic: the starter file only had empty placeholder functions. I built the whole scoring rule from scratch, and I chose "closeness" for energy instead of just "higher is better," so a song doesn't win just because it's loud — it wins because it's close to what you asked for.
 
 ---
 
 ## 4. Data  
 
-Describe the dataset the model uses.  
+The catalog has **18 songs** in `data/songs.csv`. Each song has a genre, a mood, and five number features: energy, tempo, valence, danceability, and acousticness.
 
-Prompts:  
+There are 15 different genres and 14 different moods across those 18 songs — pop, lofi, rock, jazz, ambient, synthwave, indie pop, hip hop, classical, folk, r&b, metal, country, house, and reggae. Most genres and moods only show up on one song each.
 
-- How many songs are in the catalog  
-- What genres or moods are represented  
-- Did you add or remove data  
-- Are there parts of musical taste missing in the dataset  
+I started with 10 songs and added 8 more, picking genres and moods that weren't there yet, so the catalog would cover more kinds of music.
+
+Because the catalog is so small and so spread out, a user whose favorite genre only has one song in the whole catalog can never get more than one real match — there's no "second choice" in that genre for the system to offer.
 
 ---
 
@@ -61,7 +63,7 @@ Prompts:
 
 ## 6. Limitations and Bias 
 
-Where the system struggles or behaves unfairly. 
+One weakness I found while testing the Chill Lofi persona (`favorite_genre=lofi, favorite_mood=chill, target_energy=0.35, likes_acoustic=True`) is that the recommender over-concentrates on a single artist instead of spreading recommendations across different voices. Two of the five results — "Midnight Coding" and "Focus Flow" — are both by the same artist, LoRoom, meaning 40% of that user's top-5 list came from one act simply because LoRoom happens to make several lofi/chill-adjacent tracks in the catalog. This happens because the Ranking Rule only sorts by score and slices the top k; nothing in `recommend_songs` checks for repeated artists or caps how many songs from one artist can appear. In a larger real-world catalog, this is exactly how filter bubbles form — a user who likes one artist's style gets buried in more of that same artist instead of discovering similar-but-different artists. Fixing this would require adding a diversity rule to the Ranking Rule (e.g., skip or demote a song if its artist is already in the result set) rather than changing the per-song Scoring Rule at all.
 
 Prompts:  
 
@@ -118,6 +120,16 @@ In addition to the three "normal" personas in `src/main.py` (High-Energy Pop, Ch
   5. Island Drift           (reggae     carefree  ) score=0.60
 ```
 
+**Pairwise comparisons between profiles (plain language):**
+
+- **High-Energy Pop vs. Chill Lofi — zero songs in common.** These two profiles want opposite things (loud/energetic/non-acoustic vs. quiet/mellow/acoustic), and the results reflect that perfectly: not a single song overlaps between their top-5 lists. That's exactly what should happen — if two people describe completely opposite tastes, the app shouldn't hand them the same playlist.
+
+- **High-Energy Pop vs. Deep Intense Rock — 4 of 5 songs in common.** These two only disagree on genre (pop vs. rock) but both want the same "intense," high-energy feel. Because they agree on 2 of the 4 scoring rules (mood and energy), almost the same songs win for both — they just swap which one takes the #1 spot depending on which genre is asked for. This makes sense: the system is correctly picking up on "these two users actually want very similar music, just branded differently."
+
+- **Chill Lofi vs. Deep Intense Rock — zero songs in common.** The most extreme opposite pairing we tested (quiet/acoustic vs. loud/aggressive), and again, completely different result sets. This is the clearest sign the energy and acousticness rules are doing real work — they're not just noise, they visibly separate two very different kinds of listeners.
+
+**Why does "Gym Hero" keep showing up for people who just want "Happy Pop"?** In plain terms: the system doesn't require a song to match *everything* you asked for before it's allowed to show up — it hands out points piece by piece and adds them together. Gym Hero is officially tagged "intense," not "happy," so it technically misses the mood you asked for. But it's still a real pop song (full credit there), and it's extremely high-energy, which lands close to what an upbeat "happy pop" fan usually wants anyway. So even without the "happy" label, Gym Hero racks up enough points from genre + energy + its produced (non-acoustic) sound that it out-scores plenty of songs that are technically happier but don't fit the genre or energy as well. In short: Gym Hero is loud, polished pop — and loud, polished pop reads as "upbeat" to the scoring system even when its own mood tag says otherwise, so it keeps sneaking in by winning on 3 out of 4 criteria instead of all 4.
+
 **What surprised me:**
 
 - The **case-sensitivity trap** was the most concerning result: typing `"Pop"`/`"Happy"` instead of `"pop"`/`"happy"` silently zeroed out both the genre and mood rules for every song, with no error. The top result (City Pulse, hip hop) isn't even a pop song — it only won on energy+acoustic by default, and the system gave no indication that two of its four rules had silently stopped working.
@@ -125,29 +137,39 @@ In addition to the three "normal" personas in `src/main.py` (High-Energy Pop, Ch
 - The **out-of-range `target_energy`** values (1.5 and -0.5) didn't crash, but the negative case let the energy component go below zero, breaking the "up to +2.0" ceiling documented in the Algorithm Recipe — there's no input validation clamping `target_energy` to its intended `[0, 1]` range.
 - A profile missing the `likes_acoustic` key raised an unhandled `KeyError` — there's no validation or friendly error message for malformed `user_prefs` dicts.
 
+**Sensitivity test (Weight Shift experiment):** I temporarily changed the Algorithm Recipe weights in `src/recommender.py` — halving genre (2.0 → 1.0) and doubling energy (2.0 → 4.0) — and re-ran all three personas to see whether the rankings got *more accurate* or just *different*.
+
+```
+High-Energy Pop:    Storm Runner (rock) swapped past Sunrise City (pop) at #2/#3
+Chill Lofi:         Spacewalk Thoughts (ambient) swapped past Focus Flow (lofi) at #3/#4
+Deep Intense Rock:  only #5 changed; top 4 unaffected
+```
+
+In both cases where the ranking actually moved, a song from the *wrong* genre overtook a song from the *right* genre, purely because it sat slightly closer to the target energy. Since these personas are defined by their genre ("High-Energy **Pop**," "Chill **Lofi**"), that's a regression against the user's stated intent, not an improvement — the result was **different, not more accurate**. This confirmed the original 2.0/2.0 weighting was the better call: it keeps genre meaningful as a tie-breaker instead of letting energy proximity override it. I reverted the weights back to the finalized recipe (`GENRE_WEIGHT=2.0`, `ENERGY_WEIGHT=2.0`) afterward.
+
 These are documented further in the Limitations and Bias section below.
 
 ---
 
 ## 8. Future Work  
 
-Ideas for how you would improve the model next.  
+If I kept developing this, here's what I'd change first:
 
-Prompts:  
-
-- Additional features or preferences  
-- Better ways to explain recommendations  
-- Improving diversity among the top results  
-- Handling more complex user tastes  
+1. **Add an artist diversity rule.** Right now, two songs by the same artist can both land in someone's top 5 (this happened with "LoRoom" in the Chill Lofi test). I'd cap it so only one or two songs per artist can show up at once.
+2. **Give partial credit for "close" genres and moods**, instead of all-or-nothing exact matches. Right now "indie pop" gets zero credit toward a "pop" fan, even though they're clearly related.
+3. **Add input validation.** A typo like "Pop" instead of "pop," or a missing preference, should give a clear error message instead of silently breaking the scoring or crashing.
 
 ---
 
 ## 9. Personal Reflection  
 
-A few sentences about your experience.  
+**Biggest learning moment:** Weight tuning isn't validated by intuition alone — it needs a controlled before/after comparison. I ran a sensitivity test swapping `GENRE_WEIGHT` from `2.0→1.0` and `ENERGY_WEIGHT` from `2.0→4.0` in `_score_components`. The hypothesis was that heavier energy-weighting would produce "more accurate" rankings. Instead, it let out-of-genre songs (e.g. Storm Runner, `genre=rock`) outrank in-genre songs (Sunrise City, `genre=pop`) for a persona explicitly defined by `favorite_genre=pop`, purely because `1 - abs(energy - target_energy)` scored marginally higher. That's a measurable regression against stated user intent, not an improvement — it taught me that a weight change needs a regression check against the *original* use case, not just a plausibility argument.
 
-Prompts:  
+**AI tool usage — leverage vs. verification:** The main leverage was running many profile/scoring permutations fast — e.g. 5 adversarial `user_prefs` dicts against `recommend_songs` in one pass instead of manually tracing `_score_components` by hand for each. But generated code needs execution-level verification, not just a read-through. Concretely: an edit to `src/main.py`'s docstring left an **unterminated triple-quoted string literal** (`SyntaxError`) that wasn't caught until I actually ran `python -m src.main` — a visual diff review wouldn't have caught it since the error only surfaces at parse time. Same pattern with a missing `likes_acoustic` key producing an unhandled `KeyError` in `score_song` — only surfaced by executing against a malformed dict, not by inspecting the function signature.
 
-- What you learned about recommender systems  
-- Something unexpected or interesting you discovered  
-- How this changed the way you think about music recommendation apps  
+**On simple algorithms "feeling" like recommendations:** `_score_components` is a weighted linear sum of four independent terms — two boolean exact-match checks (`genre == favorite_genre`, `mood == favorite_mood`) and two continuous proximity terms (`energy`, `acousticness`) — no learning, no cross-feature interaction, no historical data. Yet the top-1 result for each persona (Sunrise City for Happy Pop, Library Rain for Chill Lofi, Storm Runner for Deep Intense Rock) reads as intuitively "correct." The illusion breaks under adversarial input, though: a case-sensitivity mismatch (`"Pop"` vs `"pop"`) silently zeroed two of the four score terms with no exception raised, and the top result degraded to whatever scored highest on the two remaining terms (City Pulse, `genre=hip hop`) — a reminder that exact-match string comparison has zero fault tolerance, unlike the continuous terms which degrade gracefully.
+
+**Next steps if extended:**
+1. Add a diversity constraint to the Ranking Rule — cap repeated `artist` values in the top-k slice (currently unconstrained; confirmed `LoRoom` taking 2/5 slots in one test run).
+2. Replace exact-match genre/mood scoring with a similarity/adjacency table so related categories (`indie pop` ≈ `pop`) get partial credit instead of `0`.
+3. Add input validation/clamping on `target_energy` to `[0, 1]` and schema validation on `user_prefs` — currently a `KeyError` or out-of-range float silently propagates into the score instead of failing with a clear message.
