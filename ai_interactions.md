@@ -10,19 +10,28 @@
 
 **What task did you give the agent?**
 
-<!-- Describe the goal you asked the agent to accomplish -->
+Challenge 1 ("Add Advanced Song Features") in two parts, done across two separate turns: (1) introduce 5+ complex attributes to `data/songs.csv` not in the baseline data, and (2) update the scoring logic in `src/recommender.py` so scoring actually accounts for the new attributes — not just add them as unused columns.
 
 **Prompts used:**
 
-<!-- Paste the key prompts you gave the agent -->
+- "Introduce 5 or more complex attributes to your dataset that are not currently present in the baseline data, such as Song Popularity (0-100), Release Decade, or Detailed Mood Tags." (this added the columns, but — caught later — never touched the scoring code)
+- "Update both data/songs.csv and the scoring logic in src/recommender.py so scoring accounts for the new attributes." (this closed the gap)
 
 **What did the agent generate or change?**
 
-<!-- List the files edited, code generated, or commands run -->
+- `data/songs.csv`: added 5 columns — `popularity` (0-100), `release_decade`, `explicit` (bool), `instrumentalness` (0-1), `secondary_moods` (semicolon-separated tags) — across all 18 songs.
+- `src/recommender.py`: wired 3 of the 5 new attributes into `_score_components` as two new preference rules plus a content filter:
+  - **Popularity preference** — rewards high or low `popularity` depending on a new `prefers_popular` field (mainstream vs. discovery), mirroring the existing `likes_acoustic` pattern.
+  - **Instrumentalness preference** — same shape, via a new `prefers_instrumental` field (vocal vs. instrumental).
+  - **Explicit content filter** — a flat `EXPLICIT_PENALTY` applied when a song is `explicit=True` and the user's `allow_explicit=False`.
+  - Extended `Song`, `UserProfile`, `STRATEGIES`, `load_songs`, `score_song`, and `Recommender._score` to carry these through both the dict-based and dataclass-based scoring paths.
+- `release_decade` and `secondary_moods` were deliberately left unused — they need more design work (a "favorite decade" concept, and multi-value partial-credit matching) that didn't fit cleanly into the existing additive-points recipe without more thought. Documented as still-open in the model card's Future Work section.
 
 **What did you verify or fix manually?**
 
-<!-- Describe anything the agent got wrong or that required human review -->
+- Ran `pytest` after every change (stayed at 2/2 passing throughout).
+- Caught a real bias the agent introduced on the first pass: it defaulted `prefers_popular`/`prefers_instrumental` to `False` when absent from a `user_prefs` dict, which silently scored every *old* profile (that never mentions these fields) as if the user had explicitly chosen "discovery" and "vocal" — a repeat of the exact binary-preference flaw already documented for `acousticness`. Asked for a fix: changed the defaults to `None` ("no preference stated"), which skips the score contribution and reason string entirely instead of picking a side. Verified by re-running the same old-style profile before and after — before the fix it scored 6.95 with two new (unwanted) reason lines; after, it scored 5.78, identical to the original 4-rule recipe with zero new lines.
+- Verified the explicit-content penalty directly against `City Pulse` (the one `explicit=True` song in the catalog) with `allow_explicit=False` — confirmed the `-2.0` penalty applied and was visible in the reasons list.
 
 ---
 

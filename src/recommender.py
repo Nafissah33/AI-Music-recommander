@@ -18,6 +18,9 @@ class Song:
     valence: float
     danceability: float
     acousticness: float
+    popularity: float = 50.0
+    instrumentalness: float = 0.0
+    explicit: bool = False
 
 @dataclass
 class UserProfile:
@@ -29,6 +32,9 @@ class UserProfile:
     favorite_mood: str
     target_energy: float
     likes_acoustic: bool
+    prefers_popular: Optional[bool] = None
+    prefers_instrumental: Optional[bool] = None
+    allow_explicit: bool = True
 
 class Recommender:
     """
@@ -53,6 +59,12 @@ class Recommender:
             favorite_mood=user.favorite_mood,
             target_energy=user.target_energy,
             likes_acoustic=user.likes_acoustic,
+            popularity=song.popularity,
+            instrumentalness=song.instrumentalness,
+            explicit=song.explicit,
+            prefers_popular=user.prefers_popular,
+            prefers_instrumental=user.prefers_instrumental,
+            allow_explicit=user.allow_explicit,
             weights=self.weights,
         )
 
@@ -72,8 +84,11 @@ class Recommender:
         return "; ".join(reasons)
 
 def load_songs(csv_path: str) -> List[Dict]:
-    """Loads songs from a CSV file into a list of dicts with numeric fields converted."""
-    numeric_fields = ("energy", "tempo_bpm", "valence", "danceability", "acousticness")
+    """Loads songs from a CSV file into a list of dicts with numeric/boolean fields converted."""
+    numeric_fields = (
+        "energy", "tempo_bpm", "valence", "danceability", "acousticness",
+        "popularity", "instrumentalness",
+    )
 
     songs = []
     with open(csv_path, newline="") as f:
@@ -82,6 +97,7 @@ def load_songs(csv_path: str) -> List[Dict]:
             row["id"] = int(row["id"])
             for field in numeric_fields:
                 row[field] = float(row[field])
+            row["explicit"] = row["explicit"] == "True"
             songs.append(row)
 
     return songs
@@ -90,11 +106,12 @@ def load_songs(csv_path: str) -> List[Dict]:
 # for the same scoring algorithm shape. "balanced" is the finalized Algorithm Recipe
 # documented in README.md / model_card.md; the others are alternate ranking modes.
 STRATEGIES: Dict[str, Dict[str, float]] = {
-    "balanced":       {"genre": 2.0, "mood": 1.0, "energy": 2.0, "acoustic": 1.0},
-    "genre_first":    {"genre": 4.0, "mood": 1.0, "energy": 1.0, "acoustic": 1.0},
-    "mood_first":     {"genre": 1.0, "mood": 4.0, "energy": 1.0, "acoustic": 1.0},
-    "energy_focused": {"genre": 1.0, "mood": 1.0, "energy": 4.0, "acoustic": 1.0},
+    "balanced":       {"genre": 2.0, "mood": 1.0, "energy": 2.0, "acoustic": 1.0, "popularity": 1.0, "instrumental": 1.0},
+    "genre_first":    {"genre": 4.0, "mood": 1.0, "energy": 1.0, "acoustic": 1.0, "popularity": 1.0, "instrumental": 1.0},
+    "mood_first":     {"genre": 1.0, "mood": 4.0, "energy": 1.0, "acoustic": 1.0, "popularity": 1.0, "instrumental": 1.0},
+    "energy_focused": {"genre": 1.0, "mood": 1.0, "energy": 4.0, "acoustic": 1.0, "popularity": 1.0, "instrumental": 1.0},
 }
+EXPLICIT_PENALTY = 2.0
 DEFAULT_STRATEGY = "balanced"
 
 def _score_components(
@@ -106,9 +123,15 @@ def _score_components(
     favorite_mood: str,
     target_energy: float,
     likes_acoustic: bool,
+    popularity: float = 50.0,
+    instrumentalness: float = 0.0,
+    explicit: bool = False,
+    prefers_popular: Optional[bool] = None,
+    prefers_instrumental: Optional[bool] = None,
+    allow_explicit: bool = True,
     weights: Optional[Dict[str, float]] = None,
 ) -> Tuple[float, List[str]]:
-    """Applies a ranking strategy's weights (genre/mood/energy/acoustic match) shared by both scoring paths."""
+    """Applies a ranking strategy's weights (genre/mood/energy/acoustic/popularity/instrumentalness match) shared by both scoring paths."""
     weights = weights or STRATEGIES[DEFAULT_STRATEGY]
     reasons = []
     score = 0.0
@@ -134,6 +157,35 @@ def _score_components(
         acoustic_points = weights["acoustic"] * (1 - acousticness)
         reasons.append(f"non-acoustic sound ({acousticness:.2f}) matches your preference (+{acoustic_points:.2f})")
     score += acoustic_points
+
+    # prefers_popular/prefers_instrumental are tri-state (True/False/None) on purpose:
+    # None means "no preference stated," and contributes nothing, rather than
+    # silently defaulting every unset profile toward one extreme (the same binary-
+    # preference bias we found earlier with acousticness/likes_acoustic).
+    if prefers_popular is not None:
+        popularity_weight = weights.get("popularity", 1.0)
+        popularity_ratio = popularity / 100
+        if prefers_popular:
+            popularity_points = popularity_weight * popularity_ratio
+            reasons.append(f"popularity {popularity:.0f}/100 matches your mainstream preference (+{popularity_points:.2f})")
+        else:
+            popularity_points = popularity_weight * (1 - popularity_ratio)
+            reasons.append(f"popularity {popularity:.0f}/100 matches your discovery preference (+{popularity_points:.2f})")
+        score += popularity_points
+
+    if prefers_instrumental is not None:
+        instrumental_weight = weights.get("instrumental", 1.0)
+        if prefers_instrumental:
+            instrumental_points = instrumental_weight * instrumentalness
+            reasons.append(f"instrumentalness {instrumentalness:.2f} matches your instrumental preference (+{instrumental_points:.2f})")
+        else:
+            instrumental_points = instrumental_weight * (1 - instrumentalness)
+            reasons.append(f"instrumentalness {instrumentalness:.2f} matches your vocal preference (+{instrumental_points:.2f})")
+        score += instrumental_points
+
+    if explicit and not allow_explicit:
+        score -= EXPLICIT_PENALTY
+        reasons.append(f"explicit content penalty since you don't allow explicit songs (-{EXPLICIT_PENALTY:.1f})")
 
     return score, reasons
 
@@ -199,6 +251,14 @@ def score_song(user_prefs: Dict, song: Dict, weights: Optional[Dict[str, float]]
         favorite_mood=user_prefs["favorite_mood"],
         target_energy=user_prefs["target_energy"],
         likes_acoustic=user_prefs["likes_acoustic"],
+        # New attributes (Challenge 1) are optional extensions: default gracefully
+        # via .get() instead of requiring every existing user_prefs dict to be updated.
+        popularity=song.get("popularity", 50.0),
+        instrumentalness=song.get("instrumentalness", 0.0),
+        explicit=song.get("explicit", False),
+        prefers_popular=user_prefs.get("prefers_popular"),
+        prefers_instrumental=user_prefs.get("prefers_instrumental"),
+        allow_explicit=user_prefs.get("allow_explicit", True),
         weights=weights,
     )
 
